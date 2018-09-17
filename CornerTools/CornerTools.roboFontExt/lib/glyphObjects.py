@@ -7,7 +7,7 @@ Custom CocoaPen that displays a glyph with OnCurve & OffCurve points
 
 from fontTools.pens.basePen import BasePen
 from fontTools.pens.cocoaPen import CocoaPen
-from robofab.pens.pointPen import AbstractPointPen
+from ufoLib.pointPen import AbstractPointPen
 
 class CocoaGlyphPen(BasePen):
 
@@ -91,13 +91,10 @@ class CocoaGlyphPen(BasePen):
         cocoaPen.lineTo((x, y))
 
 from math import floor, cos, sin, hypot, pi, atan2, degrees, sqrt
-from robofab.pens.filterPen import thresholdGlyph
-from robofab.objects.objectsRF import RGlyph, RPoint
 from mojo.drawingTools import fill, stroke, rect, oval, save, restore, text, scale, fontSize
 from mojo.UI import CurrentGlyphWindow
 from AppKit import NSColor
 from lib.tools.bezierTools import intersectCubicCubic, intersectCubicLine, intersectLineLine
-from robofab.misc.bezierTools import solveCubic
 from time import time
 from copy import deepcopy
 
@@ -109,7 +106,11 @@ def roundFloat(f):
     error = 1000000.
     return round(f*error)/error
 
-def pointOnACurve((x1, y1), (cx1, cy1), (cx2, cy2), (x2, y2), value):
+def pointOnACurve(x1y1, cx1cy1, cx2cy2, x2y2, value):
+    (x1, y1) = x1y1
+    (cx1, cy1) = cx1cy1
+    (cx2, cy2) = cx1cy1
+    (x2, y2) = x2y2
     dx = x1
     cx = (cx1 - dx) * 3.0
     bx = (cx2 - cx1) * 3.0 - cx
@@ -126,7 +127,8 @@ def pointOnACurve((x1, y1), (cx1, cy1), (cx2, cy2), (x2, y2), value):
 Other custom utility methods
 '''
 
-def curveLength((a1, h1, h2, a2)):
+def curveLength(curve):
+    (a1, h1, h2, a2) = curve
     l = 0
     ax, ay = a1
     bx, by = h1
@@ -165,7 +167,8 @@ def highlight(point):
     restore()
 
 # Used mostly for testing purposes
-def screenPrint(string, (x, y)):
+def screenPrint(string, xy):
+    (x, y) = xy
     from mojo.UI import CurrentGlyphWindow
     s = CurrentGlyphWindow().getGlyphViewScale()
     save()
@@ -186,7 +189,7 @@ class IntelPoint(object):
 
     def __init__(self, pt, segmentType=None, smooth=False, name=None, index=0, onCurveIndex=None, selected=False):
         self.x, self.y = pt
-        if segmentType == 'offCurve': self.segmentType = None
+        if segmentType in ('offCurve', 'offcurve'): self.segmentType = None
         else: self.segmentType = segmentType
         self.smooth = smooth
         self.name = name
@@ -280,11 +283,13 @@ class IntelPoint(object):
             return self.__class__((newX, newY), self.segmentType, self.smooth)
         raise ValueError
 
-    def move(self, (mx, my)):
+    def move(self, mxmy):
+        (mx, my) = mxmy
         self.x += mx
         self.y += my
 
-    def rotate(self, angle, (rx, ry)):
+    def rotate(self, angle, rxry):
+        (rx, ry) = rxry
         xDelta = self.x - rx
         yDelta = self.y - ry
         d = hypot(xDelta, yDelta)
@@ -293,8 +298,8 @@ class IntelPoint(object):
         ny = ry + (d * sin(a-angle))
         self.x, self.y = nx, ny
 
-    def asRPoint(self):
-        return RPoint(self.x, self.y, self.segmentType)
+    #def asRPoint(self):
+    #    return RPoint(self.x, self.y, self.segmentType)
 
     def coords(self):
         return (self.x, self.y)
@@ -569,7 +574,8 @@ class IntelContour(object):
         if not isinstance(otherOutline, self.__class__):
             return
 
-    def move(self, (mx, my)):
+    def move(self, mxmy):
+        (mx, my) = mxmy
         for point in self.points:
             point.move((mx, my))
 
@@ -717,7 +723,7 @@ class IntelContour(object):
             total = 0
             pointCount = len(points)
 
-            for index1 in xrange(pointCount):
+            for index1 in range(pointCount):
                 index2 = (index1 + 1) % pointCount
                 x1, y1 = points[index1]
                 x2, y2 = points[index2]
@@ -1272,7 +1278,8 @@ class IntelContour(object):
                 return startIndex, newSegment
         return None, None
 
-    def splitSegmentAtT(self, pt0, pt1, pt2, pt3, (x, y), t):
+    def splitSegmentAtT(self, pt0, pt1, pt2, pt3, xy, t):
+        (x, y) = xy
         PointClass = self._pointClass
         m1 = pt0.interpolatePoint(pt1, t)
         m2 = pt1.interpolatePoint(pt2, t)
@@ -1596,7 +1603,7 @@ class IntelContour(object):
         pointPen.endPath()
 
     def draw(self, pen):
-        from robofab.pens.adapterPens import PointToSegmentPen
+        from ufoLib.pointPen import PointToSegmentPen
         pointPen = PointToSegmentPen(pen)
         self.drawPoints(pointPen)
 
@@ -1606,10 +1613,10 @@ class IntelContour(object):
         for point in points:
             pointView = '%s  %s  %s' % (point.x, point.y, point.segmentType)
             digest.append(pointView)
-        print len(digest)
-        print '\n'.join(digest)
-        print '-'
-        print '\n'
+        print(len(digest))
+        print('\n'.join(digest))
+        print('-')
+        print('\n')
 
 
     '''
@@ -1687,6 +1694,9 @@ class IntelOutlinePen(AbstractPointPen):
         self.currentContour = []
         self.pointCount = 0
 
+    def addComponent(self, *args, **kwargs):
+        pass
+
     def get(self):
         return self.contours
 
@@ -1734,7 +1744,8 @@ class IntelGlyph(object):
             return self.contours[index]
         raise IndexError
 
-    def move(self, (mx, my)):
+    def move(self, mxmy):
+        (mx, my) = mxmy
         for contour in self.contours:
             contour.move((mx, my))
 

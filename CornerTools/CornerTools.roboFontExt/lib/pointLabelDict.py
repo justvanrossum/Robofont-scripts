@@ -12,7 +12,7 @@ class PointLabelDict(object):
             label = self.parseLabel(rawLabel)
             if isinstance(label, tuple):
                 self.labels[label[0]] = label[1]
-            elif isinstance(label, str) or isinstance(label, unicode):
+            elif isinstance(label, str): # or isinstance(label, unicode):
                 self.labels[label] = True
 
     def __add__(self, other):
@@ -47,7 +47,7 @@ class PointLabelDict(object):
         self.labels[key] = value
 
     def __getitem__(self, key):
-        if self.labels.has_key(key):
+        if key in self.labels:
             return self.labels[key]
         return False
         raise KeyError
@@ -132,6 +132,6 @@ class PointLabelDict(object):
         return ','.join(allLabels+parameters+marks)
 
     def get(self, key):
-        if self.labels.has_key(key):
+        if key in self.labels:
             return self.labels[key]
         return False

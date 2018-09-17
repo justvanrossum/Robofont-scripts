@@ -26,13 +26,13 @@
 	<key>name</key>
 	<string>CornerTools</string>
 	<key>requiresVersionMajor</key>
-	<string>1</string>
+	<string>3</string>
 	<key>requiresVersionMinor</key>
-	<string>4</string>
+	<string>0</string>
 	<key>timeStamp</key>
-	<real>1415566404.026155</real>
+	<real>1535975311.146066</real>
 	<key>version</key>
-	<string>0.4.1</string>
+	<string>0.5.0</string>
      <key>repository</key>
     <string>loicsander/Robofont-scripts</string>
     <key>extensionPath</key>

@@ -105,7 +105,7 @@ class CornerController:
 
     def makePreviewGlyph(self, sender=None):
         if (sender is not None) and isinstance(sender, dict):
-            if sender.has_key('notificationName') and sender['notificationName'] == 'mouseDragged':
+            if 'notificationName' in sender and sender['notificationName'] == 'mouseDragged':
                 g = sender['glyph']
                 if not len(g.selection):
                     return

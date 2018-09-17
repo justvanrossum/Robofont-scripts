@@ -1,8 +1,9 @@
 # -*- coding: utf8 -*-
-GCVersion = "1.01"
+GCVersion = "2.0"
 
 # Script written by Loïc Sander — may 2014
 # update 10 july 2014
+# update 16 august 2018, Python 3, RF 3 (jvr)
 
 # Based on mojo.UI’s MultiLineView
 
@@ -22,7 +23,7 @@ from mojo.UI import *
 from mojo.events import addObserver, removeObserver
 from vanilla import *
 from defconAppKit.tools.textSplitter import splitText
-from AppKit import NSColor, NSEvent
+from AppKit import NSColor, NSEvent, NSAlternateKeyMask
 
 class BenchToolBox:
 
@@ -37,7 +38,7 @@ class BenchToolBox:
                 return "* Unamed Font"
         else:
             return ""
-            print "toolBox.getFontName: No Font provided"
+            print("toolBox.getFontName: No Font provided")
 
     def getFontByName(self, setOfFonts, fontName):
 
@@ -53,12 +54,12 @@ class BenchToolBox:
 
             if glyphSet == None:
                 for glyph in font:
-                    glyph.leftMargin += trackingValue / 2
-                    glyph.rightMargin += trackingValue / 2
+                    glyph.width += trackingValue
+                    glyph.moveBy((trackingValue / 2, 0))
 
                     if len(glyph.components) > 0:
                         for component in glyph.components:
-                            component.move(((-trackingValue / 2), 0))
+                            component.moveBy(((-trackingValue / 2), 0))
 
             font.performUndo()
 
@@ -221,7 +222,7 @@ class GroundControl:
     def __init__(self):
 
         if len(AllFonts()) == 0:
-            print "Please open at least one font before using Ground Control"
+            print("Please open at least one font before using Ground Control")
             return
 
         # [windowWidth, maxWindowWidth, minWindowWidth]
@@ -461,7 +462,7 @@ class GroundControl:
             thisLineMethAttr = getattr(self.w.allLines, self.lineNames[i] + "MethAttr")
             trackingValue = self.globalTrackingValue + thisLineMethAttr.localTrackingValue
 
-            print self.globalTrackingValue
+            print(self.globalTrackingValue)
 
             benchToolBox.modifyTracking(thisLineMethAttr.font, trackingValue)
 

@@ -50,12 +50,14 @@ class baseMatrixSpot(object):
         self._setX(x)
         self._setY(y)
 
-    def shift(self, (xAdd, yAdd)):
+    def shift(self, xyAdd):
+        (xAdd, yAdd) = xyAdd
         self.x += xAdd
         self.y += yAdd
         self.spot = (getKeyForValue(self.x), self.y)
 
-    def set(self, (x, y)):
+    def set(self, xy):
+        (x, y) = xy
         self._setX(x)
         self._setY(y)
 
@@ -63,7 +65,7 @@ class baseMatrixSpot(object):
         if isinstance(x, int):
             self.x = x
             self.spot = (getKeyForValue(x), self.y)
-        elif isinstance(x, (str, unicode)):
+        elif isinstance(x, str):
             self.x = getValueForKey(x)
             self.spot = (x, self.y)
         else:
@@ -165,7 +167,8 @@ class MatrixSpot(baseMatrixSpot):
     def getWeights(self):
         return self.xOffsetWeight.get(), self.yOffsetWeight.get()
 
-    def shiftWeights(self, (xWeightShift, yWeightShift)):
+    def shiftWeights(self, xyWeightShift):
+        (xWeightShift, yWeightShift) = xyWeightShift
         self.xOffsetWeight.set(xWeightShift)
         self.yOffsetWeight.set(yWeightShift)
 

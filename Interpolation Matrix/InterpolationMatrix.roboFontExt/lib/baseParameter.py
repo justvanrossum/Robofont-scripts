@@ -244,7 +244,8 @@ class SingleValueParameter(object):
         elif master is None:
             self.master = None
 
-    def setLimits(self, (minValue, maxValue)):
+    def setLimits(self, minMax):
+        (minValue, maxValue) = minMax
         self.limits = (minValue, maxValue)
         for slave in self.slaves:
             slave.limits = (minValue, maxValue)
@@ -254,7 +255,7 @@ class SingleValueParameter(object):
     def _checkValue(self, value):
         if value == 'R':
             self.reset()
-        elif isinstance(value, str) or isinstance(value, unicode):
+        elif isinstance(value, str): ## or isinstance(value, unicode):
             s = re.search('(\+\+|--)(\d*\.?\d*)', value)
             if s is not None:
                 offset = float(s.group(2))

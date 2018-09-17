@@ -26,13 +26,13 @@
 	<key>name</key>
 	<string>Interpolation Matrix</string>
 	<key>requiresVersionMajor</key>
-	<string>1</string>
+	<string>3</string>
 	<key>requiresVersionMinor</key>
-	<string>4</string>
+	<string>0</string>
 	<key>timeStamp</key>
-	<real>1415051872.8521161</real>
+	<real>1537179165.279258</real>
 	<key>version</key>
-	<string>0.64</string>
+	<string>0.7</string>
     <key>repository</key>
     <string>loicsander/Robofont-scripts</string>
     <key>extensionPath</key>

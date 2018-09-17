@@ -3,7 +3,7 @@
 
 '''
 Interpolation Matrix
-v0.6.5b
+v0.7
 Interpolation matrix implementing Erik van Blokland’s MutatorMath objects (https://github.com/LettError/MutatorMath)
 in a grid/matrix, allowing for easy preview of inter/extrapolation behavior of letters while drawing in Robofont.
 As the math is the same to Superpolator’s, the preview is as close as can be to Superpolator output,
@@ -15,10 +15,8 @@ although you don’t have as fine a coordinate system with this matrix (up to 15
 Loïc Sander
 '''
 
-from _mutatorMath.objects.location import Location
-from _mutatorMath.objects.mutator import buildMutator
-from fontMath.mathGlyph import MathGlyph
-from fontMath.mathInfo import MathInfo
+from mutatorMath.objects.location import Location
+from mutatorMath.objects.mutator import buildMutator
 from fontMath.mathKerning import MathKerning
 
 from matrixSpot import MatrixMaster, MatrixSpot, getKeyForValue, getValueForKey, splitSpotKey
@@ -113,6 +111,10 @@ def fontName(font):
 def colorToTuple(color): # convert NSColor to rgba tuple
     return color.redComponent(), color.greenComponent(), color.blueComponent(), color.alphaComponent()
 
+def areComponentsCompatible(glyphs):
+    componentCombinations = set(tuple(sorted(c.baseGlyph for c in g.components)) for g in glyphs)
+    return len(componentCombinations) == 1
+
 class InterpolationMatrixController:
 
     def __init__(self):
@@ -130,6 +132,7 @@ class InterpolationMatrixController:
         self.gridMax = 15
         self.masters = []
         self.mutatorMasters = []
+        self.rawMasters = []
         self.matrixSpots = {}
         self.mutator = None
         self.currentGlyph = None
@@ -173,12 +176,12 @@ class InterpolationMatrixController:
 
                 spotKey = '%s%s'%(ch, j)
 
-                if not self.matrixSpots.has_key(spotKey):
+                if not spotKey in self.matrixSpots:
                     matrixSpot = MatrixSpot((i, j))
                     matrixSpot.setWeights(((i+1)*100, (j+1)*100))
                     self.matrixSpots[spotKey] = matrixSpot
 
-                elif self.matrixSpots.has_key(spotKey):
+                elif spotKey in self.matrixSpots:
                     matrixSpot = self.matrixSpots[spotKey]
 
                 setattr(matrix, spotKey, Group(((i*cellXSize)-i, (j*cellYSize), cellXSize, cellYSize)))
@@ -238,6 +241,7 @@ class InterpolationMatrixController:
         availableFonts = AllFonts()
         masters = self.masters
         mutatorMasters = []
+        rawMasters = []
         nCellsOnHorizontalAxis, nCellsOnVerticalAxis = axesGrid
         matrix = self.w.matrix
         masterGlyph = None
@@ -254,7 +258,8 @@ class InterpolationMatrixController:
                     l = Location(**matrixSpot.getWeightsAsDict('horizontal', 'vertical'))
                     masterGlyph = makePreviewGlyph(masterFont[glyphName])
                     if masterGlyph is not None:
-                        mutatorMasters.append((l, MathGlyph(masterGlyph)))
+                        mutatorMasters.append((l, masterGlyph.toMathGlyph()))
+                        rawMasters.append(masterFont[glyphName])
             elif (masterFont not in availableFonts):
                 masters.remove(matrixMaster)
 
@@ -272,6 +277,7 @@ class InterpolationMatrixController:
                     cell.name.set('')
 
         self.mutatorMasters = mutatorMasters
+        self.rawMasters = rawMasters
 
     def makeGlyphInstances(self, axesGrid):
 
@@ -289,7 +295,11 @@ class InterpolationMatrixController:
         if mutatorMasters:
 
             try:
-                bias, mutator = buildMutator(mutatorMasters)
+                if areComponentsCompatible(self.rawMasters):
+                    bias, mutator = buildMutator(mutatorMasters)
+                else:
+                    # components are not compatible
+                    mutator = None
             except:
                 mutator = None
 
@@ -307,7 +317,8 @@ class InterpolationMatrixController:
                             instanceStart = time()
                             instanceGlyph = RGlyph()
                             iGlyph = mutator.makeInstance(instanceLocation)
-                            instanceGlyph = iGlyph.extractGlyph(RGlyph())
+                            instanceGlyph = RGlyph()
+                            instanceGlyph.fromMathGlyph(iGlyph)
                             instanceStop = time()
                             instanceTime.append((instanceStop-instanceStart)*1000)
                         else:
@@ -320,7 +331,7 @@ class InterpolationMatrixController:
         # stop = time()
         # if count:
         #     wholeTime = (stop-start)*1000
-        #     print 'made %s instances in %0.3fms, average: %0.3fms' % (count, wholeTime, wholeTime/count)
+        #     print('made %s instances in %0.3fms, average: %0.3fms' % (count, wholeTime, wholeTime/count))
 
     def generationSheet(self, sender):
 
@@ -455,10 +466,10 @@ class InterpolationMatrixController:
                 spotsList = self.parseSpotsList(spotsInput)
 
                 if (spotsList is None):
-                    print u'Interpolation matrix — at least one location is required.'
+                    print('Interpolation matrix — at least one location is required.')
                     return
 
-                # print ['%s%s'%(getKeyForValue(i).upper(), j+1) for i, j in spotsList]
+                # print(['%s%s'%(getKeyForValue(i).upper(), j+1) for i, j in spotsList])
 
             masterLocations = self.getMasterLocations()
 
@@ -630,11 +641,11 @@ class InterpolationMatrixController:
                 # interpolate font infos
 
                 if doFontInfos == True:
-                    infoMasters = [(infoLocation, MathInfo(masterFont.info)) for infoLocation, masterFont in masterLocations]
+                    infoMasters = [(infoLocation, masterFont.info.toMathInfo()) for infoLocation, masterFont in masterLocations]
                     try:
                         bias, iM = buildMutator(infoMasters)
                         instanceInfo = iM.makeInstance(instanceLocation)
-                        instanceInfo.extractInfo(newFont.info)
+                        newFont.info.fromMathInfo(instanceInfo)
                         report.append(u'+ Successfully interpolated font info')
                     except:
                         report.append(u'+ Couldn’t interpolate font info')
@@ -668,28 +679,38 @@ class InterpolationMatrixController:
 
                 if (newFont is not None) and hasattr(RFont, 'showUI') and (folderPath is None) and UI:
                     newFont.autoUnicodes()
-                    newFont.round()
+                    try:
+                        newFont.round()
+                    except TypeError:
+                        # font.round() is broken in RF Version 3.2b (built 1808302356)
+                        pass
                     newFont.showUI()
                 elif (newFont is not None) and (folderPath is not None):
                     newFont.autoUnicodes()
-                    newFont.round()
+                    try:
+                        newFont.round()
+                    except TypeError:
+                        # font.round() is broken in RF Version 3.2b (built 1808302356)
+                        pass
                     newFont.save(path)
                     report.append(u'\n—> Saved font to UFO at %s\n'%(path))
                     if UI:
                         f = RFont(path)
                 elif (newFont is not None):
-                    print u'Couldn’t save font to UFO.'
+                    print('Couldn’t save font to UFO.')
             except:
-                print u'Couldn’t finish generating, something happened…'
+                import traceback
+                traceback.print_exc()
+                print('Couldn’t finish generating, something happened…')
                 return
             finally:
                 progress.close()
 
                 if doReport:
-                    print '\n'.join(report)
+                    print('\n'.join(report))
 
             # stop = time()
-            # print 'generated in %0.3f' % ((stop-start)*1000)
+            # print('generated in %0.3f' % ((stop-start)*1000))
 
     def generateGlyphSet(self, sender):
 
@@ -740,17 +761,30 @@ class InterpolationMatrixController:
         incompatibleGlyphs = []
 
         for glyphName in glyphSet:
-            masterGlyphs = [(masterLocation, MathGlyph(masterFont[glyphName])) for masterLocation, masterFont in masters]
-            try:
-                bias, gM = buildMutator(masterGlyphs)
-                newGlyph = RGlyph()
-                instanceGlyph = gM.makeInstance(instanceLocation)
-                if suffix is not None:
-                    glyphName += suffix
-                targetFont.insertGlyph(instanceGlyph.extractGlyph(newGlyph), glyphName)
-            except:
+            masterGlyphs = [(masterLocation, masterFont[glyphName].toMathGlyph()) for masterLocation, masterFont in masters]
+            masterUnicodes = set(masterFont[glyphName].unicode for masterLocation, masterFont in masters)
+            masterRawGlyphs = [masterFont[glyphName] for masterLocation, masterFont in masters]
+            
+            if len(masterUnicodes) == 1:
+                masterUnicode = masterUnicodes.pop()
+            else:
+                masterUnicode = None
+            if areComponentsCompatible(masterRawGlyphs):
+                try:
+                    bias, gM = buildMutator(masterGlyphs)
+                    newGlyph = RGlyph()
+                    instanceGlyph = gM.makeInstance(instanceLocation)
+                    if suffix is not None:
+                        glyphName += suffix
+                    newGlyph.fromMathGlyph(instanceGlyph)
+                    assert glyphName is not None
+                    newGlyph.name = glyphName
+                    newGlyph = targetFont.insertGlyph(newGlyph, glyphName)
+                    targetFont[glyphName].unicode = masterUnicode
+                except:
+                    incompatibleGlyphs.append(glyphName)
+            else:
                 incompatibleGlyphs.append(glyphName)
-                continue
 
         return incompatibleGlyphs
 
@@ -836,10 +870,10 @@ class InterpolationMatrixController:
         finally:
             progress.close()
 
-        print u'\n*   Compatible glyphs: %s'%(len(glyphList) - incompatibleGlyphs)
-        print u'**  Incompatible glyphs: %s'%(incompatibleGlyphs)
-        print u'*** Stray glyphs: %s\n– %s\n'%(len(strayGlyphs),u'\n– '.join(list(strayGlyphs)))
-        print '\n'.join(digest)
+        print('\n*   Compatible glyphs: %s'%(len(glyphList) - incompatibleGlyphs))
+        print('**  Incompatible glyphs: %s'%(incompatibleGlyphs))
+        print('*** Stray glyphs: %s\n– %s\n'%(len(strayGlyphs),u'\n– '.join(list(strayGlyphs))))
+        print('\n'.join(digest))
 
     def glyphPreviewCellSize(self, posSize, axesGrid):
         x, y, w, h = posSize
@@ -1168,7 +1202,7 @@ class InterpolationMatrixController:
                 self.reallocateWeights()
                 self.updateMatrix()
             else:
-                print 'not a valid matrix file'
+                print('not a valid matrix file')
 
 
     def changeGlyph(self, sender):
